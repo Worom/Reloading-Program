@@ -1,5 +1,8 @@
 
 
+import com.reloadingapp.ballisticformulas.StandardDeviation;
+import com.reloadingapp.gui.AlertPopup;
+import com.reloadingapp.gui.StandardDeviationTable;
 import javafx.application.Application;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -7,6 +10,7 @@ import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.input.MouseButton;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
@@ -14,11 +18,17 @@ import projectiles.NineMM;
 import projectiles.Projectile;
 import projectiles.TwoTwoThree;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 public class Main extends Application {
 
     private TableView<Projectile> table;
     private TextField weightInput, velocityInput;
     private ChoiceBox<String> choiceBox = new ChoiceBox<>();
+    private List<Projectile> velocitySelections = new ArrayList<>();
 
     public static void main(String[] args) {
         launch(args);
@@ -66,19 +76,35 @@ public class Main extends Application {
         //Add button for adding new items to the table
         Button addButton = new Button("Add");
         addButton.setOnAction(e -> addButtonClicked());
+        Button getStandardDeviation = new Button("Get Standard Deviation");
+        getStandardDeviation.setOnAction(e -> standardDeviationButtonClicked());
         Button deleteButton = new Button("Delete");
         deleteButton.setOnAction(e -> deleteButtonClicked());
 
         HBox hBox = new HBox();
         hBox.setPadding(new Insets(10, 10, 10, 10));
         hBox.setSpacing(10);
-        hBox.getChildren().addAll(choiceBox, weightInput, velocityInput, addButton, deleteButton);
+        hBox.getChildren().addAll(choiceBox, weightInput, velocityInput, addButton, getStandardDeviation, deleteButton);
 
         table = new TableView<>();
-        table.setItems(getProduct());
-        table.getSelectionModel().setCellSelectionEnabled(true);
+        table.getSelectionModel().setCellSelectionEnabled(false);
         table.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
         table.getColumns().addAll(nameColumn, priceColumn, quantityColumn, muzzleColumn);
+        table.setRowFactory(tv -> {
+            TableRow<Projectile> row = new TableRow<>();
+            row.setOnMouseClicked(e -> {
+                if (!row.isEmpty() && e.getButton() == MouseButton.PRIMARY
+                        && e.getClickCount() == 2){
+                    Projectile clickedRow = row.getItem();
+                    velocitySelections.add(clickedRow);
+                    for(Projectile test : velocitySelections){
+                        System.out.println(test.getVelocity());
+                    }
+                }
+            });
+        return row;
+        });
+
 
 
         VBox vBox = new VBox();
@@ -98,34 +124,51 @@ public class Main extends Application {
                 bullet.setVelocity(Double.parseDouble(velocityInput.getText()));
                 bullet.setWeightInGrains(Double.parseDouble(weightInput.getText()));
                 bullet.calculateMuzzleEnergy();
+                velocitySelections.add(bullet);
                 break;
             case "223":
                 bullet = new TwoTwoThree();
                 bullet.setVelocity(Double.parseDouble(velocityInput.getText()));
                 bullet.setWeightInGrains(Double.parseDouble(weightInput.getText()));
                 bullet.calculateMuzzleEnergy();
+                velocitySelections.add(bullet);
                 break;
         }
-        TablePosition velocitySelected;
-        velocitySelected = table.getSelectionModel().getSelectedCells().get(0);
-        int row = velocitySelected.getRow();
-        Projectile item = table.getItems().get(row);
 
-        TableColumn col = velocitySelected.getTableColumn();
-        String data =  col.getCellObservableValue(item).getValue().toString();
-        System.out.println(data);
+
         table.getItems().add(bullet);
         weightInput.clear();
         velocityInput.clear();
     }
+
+
+
+
 
     //Delete button clicked
     private void deleteButtonClicked() {
         ObservableList<Projectile> productSelected, allProducts;
         allProducts = table.getItems();
         productSelected = table.getSelectionModel().getSelectedItems();
+        Projectile testRemove = table.getSelectionModel().getSelectedItem();
+        velocitySelections.remove(testRemove);
         productSelected.forEach(allProducts::remove);
     }
+
+    //Standard Deviation button clicked
+
+    private void standardDeviationButtonClicked(){
+        if(velocitySelections.size() == 0){
+            AlertPopup.display("Error", "No velocities have been selected please select velocities to calculate first.");
+        }
+        else {
+            StandardDeviationTable test = new StandardDeviationTable<>();
+            StandardDeviation velocityDeviation = new StandardDeviation(velocitySelections);
+            test.display("Standard Deviation", velocityDeviation.deviationsByCaliber());
+
+        }
+        }
+
 
     //Get all of the products
     private ObservableList<Projectile> getProduct() {
